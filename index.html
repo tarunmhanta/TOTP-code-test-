@@ -1,0 +1,1271 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#101827">
+<title>TOTP Lab | Authentication Testing</title>
+
+<!-- QR Code Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+:root {
+    --bg: #0b1120;
+    --panel: #141e30;
+    --panel2: #1b2940;
+    --border: #293750;
+    --text: #eef3ff;
+    --muted: #91a0b9;
+    --blue: #5795ff;
+    --green: #35d39a;
+    --red: #ff647c;
+    --yellow: #f7c65b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: Inter, system-ui, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+button, input, select { font: inherit; }
+
+button {
+    cursor: pointer;
+    border: 0;
+    border-radius: 9px;
+    padding: 11px 15px;
+    font-weight: 650;
+    transition: .2s;
+}
+
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+.primary { background: var(--blue); color: white; }
+.primary:hover { filter: brightness(1.12); }
+.secondary { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+.danger { background: #542536; color: #ff9aab; }
+.small { padding: 7px 10px; font-size: 12px; }
+
+header {
+    height: 70px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 5%;
+    background: #101827;
+}
+
+.brand {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-size: 19px;
+    font-weight: 800;
+}
+
+.logo {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    background: #2459a5;
+    font-size: 21px;
+}
+
+.header-status {
+    color: var(--green);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.container {
+    max-width: 1250px;
+    margin: auto;
+    padding: 32px 20px 60px;
+}
+
+.intro { margin-bottom: 28px; }
+.intro h1 { margin: 0 0 8px; font-size: 29px; }
+.intro p { color: var(--muted); margin: 0; line-height: 1.6; }
+
+.layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    min-width: 0;
+}
+
+.panel-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.panel-title h2, .panel-title h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.service-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.service-item {
+    padding: 12px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    background: #19263a;
+    cursor: pointer;
+    text-align: left;
+    color: var(--text);
+    width: 100%;
+}
+
+.service-item.active {
+    background: #203b63;
+    border-color: var(--blue);
+}
+
+.service-item strong { display: block; }
+.service-item small { color: var(--muted); display: block; margin-top: 5px; }
+
+.empty {
+    color: var(--muted);
+    text-align: center;
+    padding: 25px 10px;
+    font-size: 13px;
+}
+
+.field { margin-bottom: 15px; }
+.field label {
+    display: block;
+    color: #b6c4da;
+    font-size: 12px;
+    margin-bottom: 8px;
+    font-weight: 650;
+}
+
+.field input, .field select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    background: #0d1728;
+    border-radius: 8px;
+    color: var(--text);
+    outline: none;
+}
+
+.field input:focus, .field select:focus {
+    border-color: var(--blue);
+}
+
+.full { width: 100%; }
+
+.main-content { display: flex; flex-direction: column; gap: 18px; }
+
+.otp-panel { text-align: center; }
+
+.eyebrow {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    font-weight: 750;
+}
+
+.otp {
+    font-size: clamp(36px, 7vw, 56px);
+    font-weight: 850;
+    letter-spacing: 9px;
+    margin: 14px 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.countdown {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.progress {
+    height: 5px;
+    background: #26364e;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 16px auto;
+    max-width: 350px;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 100%;
+    background: var(--blue);
+    transition: width .2s linear;
+}
+
+.otp-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin-top: 16px;
+}
+
+.two-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+
+.qr-box {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: white;
+    padding: 14px;
+    width: 190px;
+    height: 190px;
+    border-radius: 10px;
+    margin: 15px auto;
+}
+
+#qrcode img, #qrcode canvas {
+    max-width: 160px;
+    max-height: 160px;
+}
+
+.secret {
+    background: #0d1728;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 12px;
+    word-break: break-all;
+    color: #a9c8ff;
+    margin: 10px 0;
+    line-height: 1.6;
+}
+
+.uri {
+    max-height: 95px;
+    overflow: auto;
+}
+
+.verify-result {
+    padding: 12px;
+    border-radius: 8px;
+    display: none;
+    margin-top: 15px;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.verify-result.success {
+    display: block;
+    color: var(--green);
+    background: #123b31;
+}
+
+.verify-result.error {
+    display: block;
+    color: #ff8b9e;
+    background: #432333;
+}
+
+.verify-result.info {
+    display: block;
+    color: var(--yellow);
+    background: #41351e;
+}
+
+.history {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.history th, .history td {
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+}
+
+.history th { color: var(--muted); font-weight: 600; }
+.success-text { color: var(--green); }
+.failure-text { color: var(--red); }
+
+.history-wrap { overflow-x: auto; }
+
+.hidden { display: none !important; }
+
+footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 25px;
+}
+
+.notice {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.6;
+    margin-top: 12px;
+}
+
+@media(max-width: 800px) {
+    .layout { grid-template-columns: 1fr; }
+    .two-columns { grid-template-columns: 1fr; }
+    header { padding: 0 18px; }
+    .container { padding: 22px 13px 40px; }
+    .panel { padding: 16px; }
+}
+
+@media(max-width: 400px) {
+    .otp { letter-spacing: 5px; }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <div class="brand">
+        <div class="logo">⌁</div>
+        <span>TOTP LAB</span>
+    </div>
+    <div class="header-status">● SYSTEM READY</div>
+</header>
+
+<div class="container">
+
+    <div class="intro">
+        <h1>TOTP Testing Dashboard</h1>
+        <p>Generate authentication credentials and verify your ESP32-C3 TOTP device.</p>
+    </div>
+
+    <div class="layout">
+
+        <!-- SIDEBAR -->
+        <aside class="panel">
+            <div class="panel-title">
+                <h2>Your Services</h2>
+                <span id="serviceCount" style="color:var(--muted)">0</span>
+            </div>
+
+            <div id="serviceList" class="service-list"></div>
+
+            <div class="field">
+                <label>NEW SERVICE NAME</label>
+                <input id="serviceName" placeholder="e.g. GitHub Test" maxlength="60">
+            </div>
+
+            <div class="field">
+                <label>ACCOUNT NAME</label>
+                <input id="accountName" placeholder="e.g. user@example.com" maxlength="100">
+            </div>
+
+            <button class="primary full" id="createBtn">
+                + Create New Service
+            </button>
+
+            <p class="notice">
+                Each service receives a separate random 160-bit Base32 secret.
+            </p>
+        </aside>
+
+        <!-- MAIN -->
+        <main class="main-content">
+
+            <!-- OTP DISPLAY -->
+            <section class="panel otp-panel">
+                <div class="eyebrow">WEBSITE GENERATED OTP</div>
+                <div id="currentService" style="color:var(--muted);margin-top:8px">
+                    Select or create a service
+                </div>
+
+                <div class="otp" id="websiteOTP">------</div>
+
+                <div class="countdown" id="countdown">
+                    Waiting for service
+                </div>
+
+                <div class="progress">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+
+                <div class="otp-actions">
+                    <button class="primary" id="copyOTPBtn" disabled>
+                        Copy OTP
+                    </button>
+                    <button class="secondary" id="refreshBtn" disabled>
+                        ↻ Refresh
+                    </button>
+                </div>
+            </section>
+
+            <!-- QR AND CREDENTIALS -->
+            <div class="two-columns">
+
+                <section class="panel">
+                    <div class="panel-title">
+                        <h3>QR Code</h3>
+                    </div>
+
+                    <div class="qr-box">
+                        <div id="qrcode"></div>
+                        <div id="qrPlaceholder" style="color:#555;font-size:12px">
+                            No QR Code
+                        </div>
+                    </div>
+
+                    <p style="text-align:center;color:var(--muted);font-size:12px">
+                        Scan this QR code using your ESP32-C3 setup.
+                    </p>
+
+                    <button class="secondary full" id="downloadQRBtn" disabled>
+                        Download QR Code
+                    </button>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-title">
+                        <h3>Service Credentials</h3>
+                    </div>
+
+                    <label class="eyebrow">BASE32 SECRET KEY</label>
+                    <div class="secret" id="secretDisplay">
+                        Create a service first
+                    </div>
+                    <button class="secondary full small" id="copySecretBtn" disabled>
+                        Copy Secret
+                    </button>
+
+                    <div style="margin-top:20px">
+                        <label class="eyebrow">PROVISIONING URL</label>
+                        <div class="secret uri" id="uriDisplay">
+                            Provisioning URL will appear here.
+                        </div>
+                    </div>
+
+                    <button class="secondary full small" id="copyUriBtn" disabled>
+                        Copy Provisioning URL
+                    </button>
+                </section>
+            </div>
+
+            <!-- VERIFICATION -->
+            <section class="panel">
+                <div class="panel-title">
+                    <h3>Verify ESP32-C3 Code</h3>
+                    <span style="color:var(--green);font-size:11px">
+                        ● LIVE VERIFICATION
+                    </span>
+                </div>
+
+                <p style="font-size:13px;color:var(--muted);line-height:1.6">
+                    Enter the six-digit TOTP generated by your ESP32-C3.
+                    The website independently calculates the expected code
+                    using the selected service's secret.
+                </p>
+
+                <div class="field">
+                    <label>VERIFICATION MODE</label>
+                    <select id="verificationMode">
+                        <option value="0">Strict – Current 30-second window</option>
+                        <option value="1" selected>
+                            Tolerant – Previous, current and next window
+                        </option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label>ESP32-C3 GENERATED SIX-DIGIT CODE</label>
+                    <input
+                        id="deviceOTP"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="6"
+                        placeholder="Enter 6-digit code"
+                        autocomplete="off"
+                    >
+                </div>
+
+                <button class="primary full" id="verifyBtn" disabled>
+                    Verify TOTP Code
+                </button>
+
+                <div class="verify-result" id="verifyResult"></div>
+            </section>
+
+            <!-- HISTORY -->
+            <section class="panel">
+                <div class="panel-title">
+                    <h3>Verification History</h3>
+                    <button class="danger small" id="clearHistoryBtn">
+                        Clear History
+                    </button>
+                </div>
+
+                <div class="history-wrap">
+                    <table class="history">
+                        <thead>
+                            <tr>
+                                <th>Service</th>
+                                <th>Device Code</th>
+                                <th>Result</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody">
+                            <tr>
+                                <td colspan="4" class="empty">
+                                    No verification attempts yet.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+</div>
+
+<footer>
+    TOTP LAB · RFC 6238 · HMAC-SHA1 · 6 DIGITS · 30 SECONDS
+</footer>
+
+<script>
+"use strict";
+
+/* =========================================
+   CONFIGURATION
+========================================= */
+
+const CONFIG = {
+    issuer: "TOTP Lab",
+    digits: 6,
+    period: 30,
+    algorithm: "SHA1",
+    storageKey: "totp_lab_v1",
+    maxHistory: 50
+};
+
+let services = [];
+let history = [];
+let selectedId = null;
+let currentCode = "";
+let ticking = false;
+
+
+/* =========================================
+   DOM HELPERS
+========================================= */
+
+const $ = id => document.getElementById(id);
+
+function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[char]);
+}
+
+function selectedService() {
+    return services.find(s => s.id === selectedId) || null;
+}
+
+function setResult(message, type) {
+    const el = $("verifyResult");
+    el.className = "verify-result " + type;
+    el.textContent = message;
+}
+
+function clearResult() {
+    const el = $("verifyResult");
+    el.className = "verify-result";
+    el.textContent = "";
+}
+
+
+/* =========================================
+   LOCAL STORAGE
+========================================= */
+
+function saveData() {
+    try {
+        localStorage.setItem(CONFIG.storageKey, JSON.stringify({
+            services,
+            history
+        }));
+    } catch (error) {
+        console.error("Storage error:", error);
+        alert("Unable to save data. Browser storage may be full.");
+    }
+}
+
+function loadData() {
+    try {
+        const raw = localStorage.getItem(CONFIG.storageKey);
+        if (!raw) return;
+
+        const data = JSON.parse(raw);
+
+        if (data && Array.isArray(data.services)) {
+            services = data.services.filter(s =>
+                s &&
+                typeof s.id === "string" &&
+                typeof s.name === "string" &&
+                typeof s.account === "string" &&
+                typeof s.secret === "string" &&
+                /^[A-Z2-7]+$/.test(s.secret)
+            );
+        }
+
+        if (data && Array.isArray(data.history)) {
+            history = data.history.slice(0, CONFIG.maxHistory);
+        }
+
+    } catch (error) {
+        console.error("Could not load saved data:", error);
+    }
+
+    if (!services.some(s => s.id === selectedId)) {
+        selectedId = services.length ? services[0].id : null;
+    }
+}
+
+
+/* =========================================
+   BASE32 ENCODING / DECODING
+========================================= */
+
+const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+function base32Encode(bytes) {
+    let bits = 0;
+    let value = 0;
+    let output = "";
+
+    for (const byte of bytes) {
+        value = (value << 8) | byte;
+        bits += 8;
+
+        while (bits >= 5) {
+            output += BASE32[(value >>> (bits - 5)) & 31];
+            bits -= 5;
+        }
+    }
+
+    if (bits > 0) {
+        output += BASE32[(value << (5 - bits)) & 31];
+    }
+
+    return output;
+}
+
+function base32Decode(input) {
+    const secret = input.replace(/[\s=-]/g, "").toUpperCase();
+
+    if (!secret || !/^[A-Z2-7]+$/.test(secret)) {
+        throw new Error("Invalid Base32 secret.");
+    }
+
+    let bits = 0;
+    let value = 0;
+    const output = [];
+
+    for (const char of secret) {
+        value = (value << 5) | BASE32.indexOf(char);
+        bits += 5;
+
+        if (bits >= 8) {
+            output.push((value >>> (bits - 8)) & 255);
+            bits -= 8;
+        }
+    }
+
+    return new Uint8Array(output);
+}
+
+function generateSecret() {
+    const bytes = crypto.getRandomValues(new Uint8Array(20));
+    return base32Encode(bytes);
+}
+
+
+/* =========================================
+   TOTP GENERATION
+   RFC 6238 / HOTP
+========================================= */
+
+async function generateTOTP(secret, timestamp = Date.now()) {
+
+    const keyBytes = base32Decode(secret);
+
+    const counter = Math.floor(
+        timestamp / 1000 / CONFIG.period
+    );
+
+    const counterBytes = new Uint8Array(8);
+    const view = new DataView(counterBytes.buffer);
+
+    view.setBigUint64(0, BigInt(counter), false);
+
+    const key = await crypto.subtle.importKey(
+        "raw",
+        keyBytes,
+        {
+            name: "HMAC",
+            hash: "SHA-1"
+        },
+        false,
+        ["sign"]
+    );
+
+    const signature = await crypto.subtle.sign(
+        "HMAC",
+        key,
+        counterBytes
+    );
+
+    const hash = new Uint8Array(signature);
+    const offset = hash[hash.length - 1] & 0x0f;
+
+    const binary =
+        ((hash[offset] & 0x7f) << 24) |
+        ((hash[offset + 1] & 0xff) << 16) |
+        ((hash[offset + 2] & 0xff) << 8) |
+        (hash[offset + 3] & 0xff);
+
+    const otp = binary % (10 ** CONFIG.digits);
+
+    return String(otp).padStart(CONFIG.digits, "0");
+}
+
+
+/* =========================================
+   OTP URI GENERATION
+========================================= */
+
+function generateOTPURI(service) {
+
+    const label = `${CONFIG.issuer}:${service.account}`;
+
+    const params = new URLSearchParams({
+        secret: service.secret,
+        issuer: CONFIG.issuer,
+        algorithm: CONFIG.algorithm,
+        digits: String(CONFIG.digits),
+        period: String(CONFIG.period)
+    });
+
+    return `otpauth://totp/${encodeURIComponent(label)}?${params}`;
+}
+
+
+/* =========================================
+   SERVICE CREATION
+========================================= */
+
+function createService() {
+
+    const name = $("serviceName").value.trim();
+    const account = $("accountName").value.trim();
+
+    if (!name || !account) {
+        alert("Please enter both service name and account name.");
+        return;
+    }
+
+    if (!crypto.getRandomValues || !crypto.subtle) {
+        alert("Secure browser cryptography is unavailable. Run this website on localhost or HTTPS.");
+        return;
+    }
+
+    const service = {
+        id: crypto.randomUUID(),
+        name,
+        account,
+        secret: generateSecret(),
+        createdAt: new Date().toISOString()
+    };
+
+    services.unshift(service);
+    selectedId = service.id;
+
+    $("serviceName").value = "";
+    $("accountName").value = "";
+
+    saveData();
+    renderAll();
+}
+
+function deleteService(id) {
+    const service = services.find(s => s.id === id);
+    if (!service) return;
+
+    if (!confirm(`Delete "${service.name}" and its secret?`)) return;
+
+    services = services.filter(s => s.id !== id);
+
+    if (selectedId === id) {
+        selectedId = services.length ? services[0].id : null;
+    }
+
+    saveData();
+    renderAll();
+}
+
+function selectService(id) {
+    selectedId = id;
+    clearResult();
+    $("deviceOTP").value = "";
+    renderAll();
+}
+
+
+/* =========================================
+   SERVICE LIST
+========================================= */
+
+function renderServices() {
+
+    const list = $("serviceList");
+
+    $("serviceCount").textContent = services.length;
+
+    if (!services.length) {
+        list.innerHTML = `
+            <div class="empty">No services created yet.</div>
+        `;
+        return;
+    }
+
+    list.innerHTML = services.map(s => `
+        <div class="service-item ${s.id === selectedId ? "active" : ""}"
+             data-id="${escapeHTML(s.id)}">
+
+            <strong>${escapeHTML(s.name)}</strong>
+            <small>${escapeHTML(s.account)}</small>
+
+            <button class="danger small delete-service"
+                    data-delete="${escapeHTML(s.id)}"
+                    style="margin-top:10px">
+                Delete
+            </button>
+        </div>
+    `).join("");
+
+    list.querySelectorAll(".service-item").forEach(item => {
+        item.addEventListener("click", event => {
+            if (event.target.closest(".delete-service")) return;
+            selectService(item.dataset.id);
+        });
+    });
+
+    list.querySelectorAll(".delete-service").forEach(button => {
+        button.addEventListener("click", event => {
+            event.stopPropagation();
+            deleteService(button.dataset.delete);
+        });
+    });
+}
+
+
+/* =========================================
+   QR CODE AND CREDENTIAL DISPLAY
+========================================= */
+
+function renderCredentials() {
+
+    const service = selectedService();
+    const qr = $("qrcode");
+
+    qr.innerHTML = "";
+
+    if (!service) {
+        $("qrPlaceholder").classList.remove("hidden");
+        $("secretDisplay").textContent = "Create a service first";
+        $("uriDisplay").textContent = "Provisioning URL will appear here.";
+        $("currentService").textContent = "Select or create a service";
+        $("websiteOTP").textContent = "------";
+
+        [
+            "copyOTPBtn",
+            "refreshBtn",
+            "downloadQRBtn",
+            "copySecretBtn",
+            "copyUriBtn",
+            "verifyBtn"
+        ].forEach(id => $(id).disabled = true);
+
+        currentCode = "";
+        return;
+    }
+
+    $("qrPlaceholder").classList.add("hidden");
+
+    const uri = generateOTPURI(service);
+
+    $("currentService").textContent =
+        `${service.name} · ${service.account}`;
+
+    $("secretDisplay").textContent = service.secret;
+    $("uriDisplay").textContent = uri;
+
+    [
+        "copyOTPBtn",
+        "refreshBtn",
+        "downloadQRBtn",
+        "copySecretBtn",
+        "copyUriBtn",
+        "verifyBtn"
+    ].forEach(id => $(id).disabled = false);
+
+    if (typeof QRCode === "undefined") {
+        $("qrPlaceholder").textContent = "QR library unavailable";
+        $("qrPlaceholder").classList.remove("hidden");
+        return;
+    }
+
+    new QRCode(qr, {
+        text: uri,
+        width: 160,
+        height: 160,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+    });
+}
+
+
+/* =========================================
+   LIVE OTP DISPLAY
+========================================= */
+
+async function updateOTP() {
+
+    if (ticking) return;
+
+    ticking = true;
+
+    try {
+        const service = selectedService();
+
+        if (!service) return;
+
+        const now = Date.now();
+        const remaining = CONFIG.period - Math.floor(now / 1000) % CONFIG.period;
+
+        const code = await generateTOTP(service.secret, now);
+
+        if (selectedId !== service.id) return;
+
+        currentCode = code;
+
+        $("websiteOTP").textContent = code;
+        $("countdown").textContent =
+            `New code in ${remaining} seconds`;
+
+        $("progressBar").style.width =
+            `${(remaining / CONFIG.period) * 100}%`;
+
+    } catch (error) {
+        console.error(error);
+        $("countdown").textContent = "OTP generation error";
+    } finally {
+        ticking = false;
+    }
+}
+
+
+/* =========================================
+   OTP VERIFICATION
+========================================= */
+
+async function verifyOTP() {
+
+    const service = selectedService();
+    const entered = $("deviceOTP").value.trim();
+
+    clearResult();
+
+    if (!service) {
+        setResult("Please select a service first.", "error");
+        return;
+    }
+
+    if (!/^\d{6}$/.test(entered)) {
+        setResult("Enter a valid six-digit code.", "error");
+        return;
+    }
+
+    $("verifyBtn").disabled = true;
+    $("verifyBtn").textContent = "Verifying...";
+
+    try {
+
+        const tolerance = Number($("verificationMode").value);
+        const now = Date.now();
+
+        let matchedOffset = null;
+
+        const offsets = tolerance === 1
+            ? [-1, 0, 1]
+            : [0];
+
+        for (const offset of offsets) {
+
+            const candidate = await generateTOTP(
+                service.secret,
+                now + offset * CONFIG.period * 1000
+            );
+
+            if (candidate === entered) {
+                matchedOffset = offset;
+                break;
+            }
+        }
+
+        const success = matchedOffset !== null;
+
+        let message;
+
+        if (success) {
+            if (matchedOffset === 0) {
+                message = "✓ SUCCESS! ESP32-C3 code matches the website OTP.";
+            } else if (matchedOffset === -1) {
+                message = "✓ SUCCESS! Code matches the previous time window. Check RTC synchronization.";
+            } else {
+                message = "✓ SUCCESS! Code matches the next time window. Check RTC synchronization.";
+            }
+
+            setResult(message, "success");
+
+        } else {
+            setResult(
+                "✕ FAILED! The ESP32-C3 code does not match the expected TOTP.",
+                "error"
+            );
+        }
+
+        history.unshift({
+            service: service.name,
+            code: entered,
+            success,
+            offset: matchedOffset,
+            time: new Date().toISOString()
+        });
+
+        history = history.slice(0, CONFIG.maxHistory);
+
+        saveData();
+        renderHistory();
+
+    } catch (error) {
+        console.error(error);
+        setResult("Verification error: " + error.message, "error");
+    } finally {
+        $("verifyBtn").disabled = !selectedService();
+        $("verifyBtn").textContent = "Verify TOTP Code";
+    }
+}
+
+
+/* =========================================
+   VERIFICATION HISTORY
+========================================= */
+
+function renderHistory() {
+
+    const body = $("historyBody");
+
+    if (!history.length) {
+        body.innerHTML = `
+            <tr><td colspan="4" class="empty">
+                No verification attempts yet.
+            </td></tr>
+        `;
+        return;
+    }
+
+    body.innerHTML = history.map(item => `
+        <tr>
+            <td>${escapeHTML(item.service)}</td>
+            <td>${escapeHTML(item.code)}</td>
+            <td class="${item.success ? "success-text" : "failure-text"}">
+                ${item.success ? "SUCCESS" : "FAILED"}
+            </td>
+            <td>${escapeHTML(new Date(item.time).toLocaleString())}</td>
+        </tr>
+    `).join("");
+}
+
+function clearHistory() {
+    if (!history.length) return;
+
+    if (!confirm("Clear all verification history?")) return;
+
+    history = [];
+    saveData();
+    renderHistory();
+}
+
+
+/* =========================================
+   COPY UTILITIES
+========================================= */
+
+async function copyText(text, message) {
+    try {
+        await navigator.clipboard.writeText(text);
+        alert(message);
+    } catch (error) {
+        alert("Clipboard access failed. Use HTTPS or localhost.");
+    }
+}
+
+function copyOTP() {
+    if (currentCode) {
+        copyText(currentCode, "OTP copied successfully.");
+    }
+}
+
+function copySecret() {
+    const service = selectedService();
+    if (service) copyText(service.secret, "Secret copied successfully.");
+}
+
+function copyURI() {
+    const service = selectedService();
+    if (service) {
+        copyText(generateOTPURI(service), "Provisioning URL copied successfully.");
+    }
+}
+
+
+/* =========================================
+   DOWNLOAD QR CODE
+========================================= */
+
+function downloadQR() {
+
+    const qr = $("qrcode");
+    const canvas = qr.querySelector("canvas");
+    const img = qr.querySelector("img");
+
+    let url = null;
+
+    if (canvas) {
+        url = canvas.toDataURL("image/png");
+    } else if (img && img.src) {
+        url = img.src;
+    }
+
+    if (!url) {
+        alert("QR code is not available.");
+        return;
+    }
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "totp-lab-qr.png";
+    link.click();
+}
+
+
+/* =========================================
+   RENDER ALL
+========================================= */
+
+function renderAll() {
+    renderServices();
+    renderCredentials();
+    renderHistory();
+    updateOTP();
+}
+
+
+/* =========================================
+   EVENT LISTENERS
+========================================= */
+
+$("createBtn").addEventListener("click", createService);
+
+$("serviceName").addEventListener("keydown", e => {
+    if (e.key === "Enter") $("createBtn").click();
+});
+
+$("accountName").addEventListener("keydown", e => {
+    if (e.key === "Enter") $("createBtn").click();
+});
+
+$("copyOTPBtn").addEventListener("click", copyOTP);
+$("copySecretBtn").addEventListener("click", copySecret);
+$("copyUriBtn").addEventListener("click", copyURI);
+$("downloadQRBtn").addEventListener("click", downloadQR);
+
+$("refreshBtn").addEventListener("click", updateOTP);
+$("verifyBtn").addEventListener("click", verifyOTP);
+$("clearHistoryBtn").addEventListener("click", clearHistory);
+
+$("deviceOTP").addEventListener("input", e => {
+    e.target.value = e.target.value.replace(/\D/g, "").slice(0, 6);
+    clearResult();
+});
+
+$("deviceOTP").addEventListener("keydown", e => {
+    if (e.key === "Enter") verifyOTP();
+});
+
+
+/* =========================================
+   INITIALIZATION
+========================================= */
+
+async function initialize() {
+
+    if (!window.crypto ||
+        !crypto.getRandomValues ||
+        !crypto.subtle) {
+
+        alert(
+            "Secure cryptography is unavailable. Open this website through localhost or HTTPS."
+        );
+        return;
+    }
+
+    loadData();
+    renderAll();
+
+    setInterval(updateOTP, 500);
+}
+
+initialize();
+
+</script>
+</body>
+</html>
